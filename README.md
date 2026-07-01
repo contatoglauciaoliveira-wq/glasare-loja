@@ -1,0 +1,1 @@
+# glasare-loja
