@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import { createClient } from "@supabase/supabase-js";
 
@@ -446,19 +447,52 @@ const saveProduct = async () => {
 if(!form.name.trim()){showToast("Informe o nome da peça","err");return;}
 const priceNum=parseFloat(String(form.price).replace(",","."));
 if(isNaN(priceNum)||priceNum<=0){showToast("Informe um valor válido","err");return;}
-const row = { name:form.name, descricao:form.desc, price:priceNum, cat:form.cat, tag:form.tag, emoji:form.emoji||"💎", image:form.image, active:form.active };
+
+showToast("Salvando...", "ok");
+
+// Upload da imagem para o Supabase Storage (se houver nova imagem em base64)
+let imageUrl = form.image;
+if (form.image && form.image.startsWith("data:")) {
+try {
+const base64 = form.image.split(",")[1];
+const byteArr = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+const fileName = `produto-${Date.now()}.jpg`;
+const { data: upData, error: upErr } = await supabase.storage
+.from("produtos-imagens")
+.upload(fileName, byteArr, { contentType: "image/jpeg", upsert: true });
+if (!upErr) {
+const { data: urlData } = supabase.storage.from("produtos-imagens").getPublicUrl(fileName);
+imageUrl = urlData.publicUrl;
+}
+} catch(e) { imageUrl = null; }
+}
+
+const row = {
+name: form.name,
+descricao: form.desc,
+price: priceNum,
+cat: form.cat,
+tag: form.tag,
+emoji: form.emoji || "💎",
+image: imageUrl,
+active: form.active
+};
+
 let updated;
 if(modal==="new"){
-const { data } = await supabase.from("produtos").insert([row]).select();
+const { data, error } = await supabase.from("produtos").insert([row]).select();
+if (error) { showToast("Erro ao salvar. Tente novamente.", "err"); return; }
 const nova = data?.[0] ? { ...data[0], desc: data[0].descricao } : { ...row, desc:form.desc, id:"p"+Date.now() };
-updated=[...products, nova];
+updated = [...products, nova];
 showToast("Peça cadastrada!");
 } else {
-await supabase.from("produtos").update(row).eq("id", modal);
-updated=products.map(p=>p.id===modal?{...p,...row,desc:form.desc,price:priceNum}:p);
+const { error } = await supabase.from("produtos").update(row).eq("id", modal);
+if (error) { showToast("Erro ao atualizar. Tente novamente.", "err"); return; }
+updated = products.map(p => p.id===modal ? {...p,...row, desc:form.desc, price:priceNum} : p);
 showToast("Peça atualizada!");
 }
-setProducts(updated); await persist(updated); closeModal();
+setProducts(updated);
+closeModal();
 };
 
 const toggleActive = async (id) => {
@@ -655,6 +689,7 @@ return (
 function FI({ value, onChange, placeholder }) {
 return <input value={value} onChange={onChange} placeholder={placeholder} style={{ width:"100%", padding:"9px 12px", border:`1px solid ${C.border}`, borderRadius:8, fontFamily:"sans-serif", fontSize:13, outline:"none", boxSizing:"border-box", background:C.white }}/>;
 }
+
 
 
 
