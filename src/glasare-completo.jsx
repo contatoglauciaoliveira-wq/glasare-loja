@@ -388,13 +388,25 @@ style={{ width:"100%", padding:"14px", background:`linear-gradient(135deg,${C.go
 <div style={{ padding:32, textAlign:"center" }}>
 <div style={{ fontSize:52, marginBottom:12 }}>🏦</div>
 <div style={{ fontSize:20, fontWeight:700, marginBottom:6 }}>Pague via Pix</div>
-<div style={{ fontSize:13, color:C.gray, fontFamily:"sans-serif", marginBottom:20, lineHeight:1.6 }}>Copie a chave abaixo e faça o pagamento no seu banco. Após pagar, envie o comprovante pelo WhatsApp.</div>
+<div style={{ background:"#FFF8E1", border:"1px solid #F9A825", borderRadius:8, padding:"12px 16px", marginBottom:16, fontFamily:"sans-serif", fontSize:13, color:"#5D4037", lineHeight:1.7 }}>
+⚠️ <strong>Atenção:</strong> Seu pedido só será confirmado após o envio e verificação do comprovante de pagamento pelo WhatsApp.
+</div>
+<div style={{ fontSize:13, color:C.gray, fontFamily:"sans-serif", marginBottom:16, lineHeight:1.6 }}>
+1. Copie a chave Pix abaixo<br/>
+2. Faça o pagamento no seu banco<br/>
+3. Envie o comprovante pelo WhatsApp<br/>
+4. Aguarde a confirmação da Glasare
+</div>
 <div style={{ background:C.cream, border:`1px solid ${C.border}`, borderRadius:8, padding:"14px 20px", fontFamily:"monospace", fontSize:15, letterSpacing:.5, marginBottom:8, userSelect:"all" }}>{CHAVE_PIX}</div>
-<div style={{ fontSize:24, fontWeight:800, color:C.goldDim, margin:"16px 0 24px" }}>{fmt(total)}</div>
-<button onClick={()=>{ const msg=encodeURIComponent(`Olá, Glasare! Realizei o pagamento via Pix de ${fmt(total)}.\n\n${cartLines()}\n\nNome: ${form.name}\nTelefone: ${form.phone}`); window.open(`https://wa.me/${WHATSAPP}?text=${msg}`,"_blank"); setPix(false);setCart([]);setCoupon(null);setCouponInput(""); }}
+<div style={{ fontSize:11, color:C.gray, fontFamily:"sans-serif", marginBottom:8 }}>Chave Pix — Telefone</div>
+<div style={{ fontSize:24, fontWeight:800, color:C.goldDim, margin:"12px 0 20px" }}>{fmt(total)}</div>
+<button onClick={()=>{ const msg=encodeURIComponent(`Olá, Glasare! 💛\n\nRealizei o pagamento via Pix e gostaria de enviar o comprovante para confirmar meu pedido.\n\n${cartLines()}\n\n*Total: ${fmt(total)}*\n\nNome: ${form.name}\nTelefone: ${form.phone}`); window.open(`https://wa.me/${WHATSAPP}?text=${msg}`,"_blank"); setPix(false);setCart([]);setCoupon(null);setCouponInput(""); }}
 style={{ width:"100%", padding:"13px", background:"#25D366", color:C.white, border:"none", borderRadius:10, cursor:"pointer", fontFamily:"sans-serif", fontSize:14, fontWeight:800 }}>
 Enviar comprovante pelo WhatsApp 💬
 </button>
+<div style={{ fontSize:11, color:C.gray, fontFamily:"sans-serif", marginTop:12, lineHeight:1.6 }}>
+Seu pedido será confirmado após verificação do pagamento.
+</div>
 </div>
 </Overlay>
 )}
@@ -643,5 +655,6 @@ return (
 function FI({ value, onChange, placeholder }) {
 return <input value={value} onChange={onChange} placeholder={placeholder} style={{ width:"100%", padding:"9px 12px", border:`1px solid ${C.border}`, borderRadius:8, fontFamily:"sans-serif", fontSize:13, outline:"none", boxSizing:"border-box", background:C.white }}/>;
 }
+
 
 
