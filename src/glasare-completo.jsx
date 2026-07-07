@@ -1021,3 +1021,4 @@ return (
 
 function FI({ value, onChange, placeholder }) {
 return <input value={value} onChange={onChange} placeholder={placeholder} style={{ width:"100%", padding:"9px 12px", border:`1px solid ${C.border}`, borderRadius:8, fontFamily:"sans-serif", fontSize:13, outline:"none", boxSizing:"border-box", background:C.white }}/>
+}
