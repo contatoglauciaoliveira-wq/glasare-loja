@@ -25,7 +25,6 @@ const C = {
 // ── Config — substitua pelos seus dados reais ─────────────────────────────
 const WHATSAPP  = "5521991721655";
 const CHAVE_PIX = "21991721655";
-const MIN_PURCHASE = 99.90;
 
 // ── Cupons ────────────────────────────────────────────────────────────────
 const COUPONS = { "GLASARE10": 10, "VIPGOLD": 15, "BEM-VINDA": 20 };
@@ -244,7 +243,7 @@ function Loja({ products, onLogoClick }) {
           Peças selecionadas para mulheres que apreciam o que há de mais fino e sofisticado.
         </p>
         <div style={{ display:"flex", justifyContent:"center", gap:32, flexWrap:"wrap" }}>
-          {["Folheado 18k","Alta durabilidade","Compra mínima de R$99,90"].map(t=>(
+          {["Folheado 18k","Alta durabilidade","Entregamos em todo o Brasil"].map(t=>(
             <span key={t} style={{ color:C.gray, fontFamily:"sans-serif", fontSize:11, letterSpacing:1.5, textTransform:"uppercase", display:"flex", alignItems:"center", gap:6 }}>
               <span style={{ color:C.gold, fontSize:8 }}>◆</span>{t}
             </span>
@@ -353,12 +352,7 @@ function Loja({ products, onLogoClick }) {
                 <div style={{ display:"flex", justifyContent:"space-between", fontFamily:"sans-serif", fontSize:13, marginBottom:4 }}><span style={{ color:C.gray }}>Subtotal</span><span>{fmt(subtotal)}</span></div>
                 {coupon && <div style={{ display:"flex", justifyContent:"space-between", fontFamily:"sans-serif", fontSize:13, color:C.green, marginBottom:4 }}><span>Desconto ({COUPONS[coupon]}%)</span><span>− {fmt(discount)}</span></div>}
                 <div style={{ display:"flex", justifyContent:"space-between", fontWeight:700, fontSize:16, borderTop:`1px solid ${C.border}`, paddingTop:10, marginBottom:16 }}><span>Total</span><span style={{ color:C.goldDim }}>{fmt(total)}</span></div>
-                {total<MIN_PURCHASE && (
-                  <div style={{ background:"#FFF8E1", border:"1px solid #F9A825", borderRadius:8, padding:"10px 14px", marginBottom:12, fontFamily:"sans-serif", fontSize:12, color:"#5D4037", lineHeight:1.6 }}>
-                    ⚠️ Pedido mínimo de {fmt(MIN_PURCHASE)}. Faltam {fmt(MIN_PURCHASE-total)} para liberar o pedido.
-                  </div>
-                )}
-                <button onClick={()=>{ if(total<MIN_PURCHASE){showToast(`Pedido mínimo de ${fmt(MIN_PURCHASE)}`,"err");return;} setCartOpen(false);setCheckout(true); }} disabled={total<MIN_PURCHASE} style={{ width:"100%", padding:"14px", background:total<MIN_PURCHASE?C.border:`linear-gradient(135deg,${C.goldLight},${C.gold})`, color:total<MIN_PURCHASE?C.gray:C.white, border:"none", borderRadius:10, cursor:total<MIN_PURCHASE?"not-allowed":"pointer", fontFamily:"sans-serif", fontSize:15, fontWeight:800, letterSpacing:.5, boxShadow:total<MIN_PURCHASE?"none":`0 4px 18px ${C.gold}55` }}>Finalizar Pedido →</button>
+                <button onClick={()=>{setCartOpen(false);setCheckout(true);}} style={{ width:"100%", padding:"14px", background:`linear-gradient(135deg,${C.goldLight},${C.gold})`, color:C.white, border:"none", borderRadius:10, cursor:"pointer", fontFamily:"sans-serif", fontSize:15, fontWeight:800, letterSpacing:.5, boxShadow:`0 4px 18px ${C.gold}55` }}>Finalizar Pedido →</button>
               </div>
             )}
           </div>
@@ -385,7 +379,7 @@ function Loja({ products, onLogoClick }) {
                 ))}
               </div>
             </FL>
-            <button onClick={()=>{ if(total<MIN_PURCHASE){showToast(`Pedido mínimo de ${fmt(MIN_PURCHASE)}`,"err");return;} if(!form.name||!form.phone){showToast("Preencha nome e telefone","err");return;} payMethod==="whatsapp"?sendWhatsApp():(setPix(true),setCheckout(false)); }}
+            <button onClick={()=>{ if(!form.name||!form.phone){showToast("Preencha nome e telefone","err");return;} payMethod==="whatsapp"?sendWhatsApp():(setPix(true),setCheckout(false)); }}
               style={{ width:"100%", padding:"14px", background:`linear-gradient(135deg,${C.goldLight},${C.gold})`, color:C.white, border:"none", borderRadius:10, cursor:"pointer", fontFamily:"sans-serif", fontSize:15, fontWeight:800, marginTop:20, boxShadow:`0 4px 18px ${C.gold}44` }}>
               {payMethod==="whatsapp"?"Enviar pelo WhatsApp 💬":"Ver dados do Pix 🏦"}
             </button>
