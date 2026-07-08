@@ -176,6 +176,21 @@ function Loja({ products, onLogoClick }) {
   const [toast, setToast]       = useState(null);
   const [detail, setDetail]     = useState(null);
 
+  // ── Registro de visita (analytics próprio via Supabase) ─────────────────
+  useEffect(() => {
+    const registrarVisita = async () => {
+      try {
+        await supabase.from('visitas').insert({
+          pagina: window.location.pathname,
+          origem: document.referrer || 'direto'
+        });
+      } catch (error) {
+        console.error('Erro ao registrar visita:', error);
+      }
+    };
+    registrarVisita();
+  }, []);
+
   const showToast = (msg,type="ok") => { setToast({msg,type}); setTimeout(()=>setToast(null),2800); };
 
   const allCats = ["Todos",...CATS];
@@ -428,7 +443,7 @@ function Loja({ products, onLogoClick }) {
 // ADMIN
 // ═══════════════════════════════════════════════════════════════════════════
 function Admin({ products, setProducts, persist }) {
-  const [tab, setTab]             = useState("produtos"); // produtos | estoque | consultoras | locais
+  const [tab, setTab]             = useState("produtos"); // produtos | estoque | consultoras | locais | visitas
   const [modal, setModal]         = useState(null);
   const [form, setForm]           = useState(EMPTY_FORM);
   const [filterCat, setFilterCat] = useState("Todos");
@@ -528,6 +543,7 @@ function Admin({ products, setProducts, persist }) {
     ["estoque","📦 Estoque"],
     ["consultoras","🤝 Consultoras"],
     ["locais","📍 Locais"],
+    ["visitas","📊 Visitas"],
   ];
 
   return (
@@ -616,6 +632,7 @@ function Admin({ products, setProducts, persist }) {
       {tab==="estoque" && <EstoqueTab products={products} showToast={showToast} />}
       {tab==="consultoras" && <ConsultorasTab showToast={showToast} />}
       {tab==="locais" && <LocaisTab showToast={showToast} />}
+      {tab==="visitas" && <VisitasTab />}
 
       {/* MODAL PEÇA */}
       {modal && (
@@ -681,6 +698,110 @@ function Admin({ products, setProducts, persist }) {
         </Overlay>
       )}
       <style>{`@keyframes fadeUp{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}`}</style>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// VISITAS (analytics próprio)
+// ═══════════════════════════════════════════════════════════════════════════
+function VisitasTab() {
+  const [visitas, setVisitas] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from("visitas")
+      .select("*")
+      .order("criado_em", { ascending: false })
+      .limit(2000);
+    setVisitas(data || []);
+    setLoading(false);
+  };
+  useEffect(()=>{ load(); },[]);
+
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  const seteDiasAtras = new Date(hoje); seteDiasAtras.setDate(seteDiasAtras.getDate()-6);
+
+  const totalVisitas = visitas.length;
+  const visitasHoje = visitas.filter(v => new Date(v.criado_em) >= hoje).length;
+
+  // Agrupa por dia (últimos 7 dias)
+  const porDia = [];
+  for (let i=6; i>=0; i--) {
+    const dia = new Date(hoje); dia.setDate(dia.getDate()-i);
+    const diaFim = new Date(dia); diaFim.setDate(diaFim.getDate()+1);
+    const count = visitas.filter(v => { const d=new Date(v.criado_em); return d>=dia && d<diaFim; }).length;
+    porDia.push({ label: dia.toLocaleDateString("pt-BR",{ day:"2-digit", month:"2-digit" }), count });
+  }
+  const maxDia = Math.max(1, ...porDia.map(d=>d.count));
+
+  // Agrupa por origem
+  const origemMap = {};
+  visitas.forEach(v => {
+    let origem = v.origem || "direto";
+    if (origem.includes("instagram")) origem = "Instagram";
+    else if (origem.includes("whatsapp") || origem.includes("wa.me")) origem = "WhatsApp";
+    else if (origem.includes("facebook")) origem = "Facebook";
+    else if (origem === "direto" || origem === "") origem = "Direto / Link";
+    else { try { origem = new URL(origem).hostname; } catch { origem = "Outro"; } }
+    origemMap[origem] = (origemMap[origem]||0)+1;
+  });
+  const origens = Object.entries(origemMap).sort((a,b)=>b[1]-a[1]);
+
+  return (
+    <div style={{ padding:"24px 32px 48px" }}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+        <div style={{ fontSize:15, fontWeight:700, color:C.goldDim }}>Visitas ao site</div>
+        <button onClick={load} style={{ background:C.white, color:C.goldDim, border:`1px solid ${C.gold}`, borderRadius:8, padding:"8px 16px", cursor:"pointer", fontFamily:"sans-serif", fontSize:12, fontWeight:700 }}>↻ Atualizar</button>
+      </div>
+
+      {loading ? (
+        <div style={{ padding:24, textAlign:"center", color:C.gray, fontFamily:"sans-serif" }}>Carregando...</div>
+      ) : (
+        <>
+          {/* RESUMO */}
+          <div style={{ display:"flex", gap:16, flexWrap:"wrap", marginBottom:24 }}>
+            {[{label:"Visitas hoje", value:visitasHoje, icon:"📅"},{label:"Total registrado", value:totalVisitas, icon:"👀"}].map(s=>(
+              <div key={s.label} style={{ background:C.white, border:`1px solid ${C.border}`, borderRadius:12, padding:"18px 24px", minWidth:160, flex:1 }}>
+                <div style={{ fontSize:22 }}>{s.icon}</div>
+                <div style={{ fontSize:28, fontWeight:700, color:C.goldDim, marginTop:4 }}>{s.value}</div>
+                <div style={{ fontSize:11, color:C.gray, fontFamily:"sans-serif", letterSpacing:1, textTransform:"uppercase", marginTop:2 }}>{s.label}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* GRÁFICO DE BARRAS — ÚLTIMOS 7 DIAS */}
+          <div style={{ background:C.white, border:`1px solid ${C.border}`, borderRadius:12, padding:"20px 24px", marginBottom:24 }}>
+            <div style={{ fontSize:12, color:C.gray, fontFamily:"sans-serif", letterSpacing:1, textTransform:"uppercase", marginBottom:16, fontWeight:600 }}>Últimos 7 dias</div>
+            <div style={{ display:"flex", alignItems:"flex-end", gap:12, height:140 }}>
+              {porDia.map(d=>(
+                <div key={d.label} style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", gap:6 }}>
+                  <div style={{ fontSize:11, fontFamily:"sans-serif", color:C.goldDim, fontWeight:700 }}>{d.count}</div>
+                  <div style={{ width:"100%", maxWidth:36, height:Math.max(4,(d.count/maxDia)*100), background:`linear-gradient(180deg,${C.goldLight},${C.gold})`, borderRadius:"6px 6px 0 0" }}/>
+                  <div style={{ fontSize:10, fontFamily:"sans-serif", color:C.gray }}>{d.label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* ORIGEM */}
+          <div style={{ background:C.white, border:`1px solid ${C.border}`, borderRadius:12, padding:"20px 24px" }}>
+            <div style={{ fontSize:12, color:C.gray, fontFamily:"sans-serif", letterSpacing:1, textTransform:"uppercase", marginBottom:16, fontWeight:600 }}>De onde vieram</div>
+            {origens.length===0 && <div style={{ color:C.gray, fontFamily:"sans-serif", fontSize:13 }}>Ainda não há dados suficientes.</div>}
+            {origens.map(([origem,count])=>(
+              <div key={origem} style={{ display:"flex", alignItems:"center", gap:12, marginBottom:10 }}>
+                <div style={{ width:110, fontSize:12, fontFamily:"sans-serif", color:C.ink }}>{origem}</div>
+                <div style={{ flex:1, background:C.cream, borderRadius:6, overflow:"hidden", height:16 }}>
+                  <div style={{ width:`${(count/totalVisitas)*100}%`, height:"100%", background:`linear-gradient(90deg,${C.goldLight},${C.gold})` }}/>
+                </div>
+                <div style={{ fontSize:12, fontFamily:"sans-serif", fontWeight:700, color:C.goldDim, minWidth:30, textAlign:"right" }}>{count}</div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }
