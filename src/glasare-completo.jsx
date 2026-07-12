@@ -27,7 +27,7 @@ const WHATSAPP  = "5521991721655";
 const CHAVE_PIX = "21991721655";
 
 // ── Cupons ────────────────────────────────────────────────────────────────
-const COUPONS = { "GLASARE10": 10, "VIPGOLD": 15, "BEM-VINDA": 20 };
+const COUPONS = { "GLASARE10": 10, "VIPGOLD": 15, "BEM-VINDA": 20, "BEKAH7": 5 };
 
 // ── Categorias e tags ─────────────────────────────────────────────────────
 const CATS = ["Anéis","Brincos","Colares","Pulseiras","Tornozeleiras","Conjuntos"];
@@ -244,7 +244,7 @@ function Loja({ products, onLogoClick }) {
 
       {/* TARJA PROMOCIONAL */}
       <div style={{ background:`linear-gradient(135deg,${C.goldLight},${C.gold})`, padding:"14px 16px", textAlign:"center" }}>
-        <div style={{ color:C.white, fontFamily:"sans-serif", fontWeight:800, fontSize:15, letterSpacing:1 }}>LUCRE ATÉ 300%</div>
+        <div style={{ color:C.white, fontFamily:"sans-serif", fontWeight:800, fontSize:15, letterSpacing:1 }}>ENTREGAMOS EM TODO O BRASIL</div>
       </div>
 
       {/* HERO */}
@@ -258,7 +258,7 @@ function Loja({ products, onLogoClick }) {
           Peças selecionadas para mulheres que apreciam o que há de mais fino e sofisticado.
         </p>
         <div style={{ display:"flex", justifyContent:"center", gap:32, flexWrap:"wrap" }}>
-          {["Folheado 18k","Alta durabilidade","Entregamos em todo o Brasil"].map(t=>(
+          {["Folheado 18k","Alta durabilidade","Aceitamos cartões de crédito"].map(t=>(
             <span key={t} style={{ color:C.gray, fontFamily:"sans-serif", fontSize:11, letterSpacing:1.5, textTransform:"uppercase", display:"flex", alignItems:"center", gap:6 }}>
               <span style={{ color:C.gold, fontSize:8 }}>◆</span>{t}
             </span>
@@ -393,6 +393,11 @@ function Loja({ products, onLogoClick }) {
                   <button key={v} onClick={()=>setPayMethod(v)} style={{ flex:1, padding:"12px 8px", borderRadius:10, fontFamily:"sans-serif", fontSize:13, fontWeight:700, cursor:"pointer", border:`2px solid ${payMethod===v?C.gold:C.border}`, background:payMethod===v?C.goldPale:C.white, color:payMethod===v?C.goldDim:C.gray }}>{l}</button>
                 ))}
               </div>
+              {payMethod==="whatsapp" && (
+                <div style={{ fontSize:11, color:C.gray, fontFamily:"sans-serif", marginTop:8, lineHeight:1.6 }}>
+                  Combine a forma de pagamento (Pix ou cartão) diretamente comigo pelo WhatsApp.
+                </div>
+              )}
             </FL>
             <button onClick={()=>{ if(!form.name||!form.phone){showToast("Preencha nome e telefone","err");return;} payMethod==="whatsapp"?sendWhatsApp():(setPix(true),setCheckout(false)); }}
               style={{ width:"100%", padding:"14px", background:`linear-gradient(135deg,${C.goldLight},${C.gold})`, color:C.white, border:"none", borderRadius:10, cursor:"pointer", fontFamily:"sans-serif", fontSize:15, fontWeight:800, marginTop:20, boxShadow:`0 4px 18px ${C.gold}44` }}>
