@@ -27,7 +27,7 @@ const WHATSAPP  = "5521991721655";
 const CHAVE_PIX = "21991721655";
 
 // ── Cupons ────────────────────────────────────────────────────────────────
-const COUPONS = { "GLASARE10": 10, "VIPGOLD": 15, "BEM-VINDA": 20, "BEKAH7": 5 };
+const COUPONS = { "GLASARE10": 10, "SARAH": 15, "BEM-VINDA": 20, "BEKAH7": 40 };
 
 // ── Categorias e tags ─────────────────────────────────────────────────────
 const CATS = ["Anéis","Brincos","Colares","Pulseiras","Tornozeleiras","Conjuntos"];
