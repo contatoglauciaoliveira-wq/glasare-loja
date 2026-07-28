@@ -26,6 +26,9 @@ const C = {
 const WHATSAPP  = "5521991721655";
 const CHAVE_PIX = "21991721655";
 
+// ── Pedido mínimo no atacado ───────────────────────────────────────────────
+const MIN_ATACADO = 300;
+
 // ── Cupons ────────────────────────────────────────────────────────────────
 const COUPONS = { "GLASARE10": 10, "SARAH": 5, "BEM-VINDA": 20, "BEKAH7": 10 };
 
@@ -53,13 +56,13 @@ const SEED = [
 ];
 
 const fmt = (v) => Number(v).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
-const EMPTY_FORM = { name:"", desc:"", price:"", cat:"Anéis", tag:"", image:null, emoji:"💎", active:true, codigo:"" };
+const EMPTY_FORM = { name:"", desc:"", price:"", precoAtacado:"", cat:"Anéis", tag:"", image:null, emoji:"💎", active:true, codigo:"" };
 
 // ═══════════════════════════════════════════════════════════════════════════
 // COMPONENTE RAIZ
 // ═══════════════════════════════════════════════════════════════════════════
 export default function GlasareApp() {
-  const [mode, setMode]         = useState("loja"); // "loja" | "admin"
+  const [mode, setMode]         = useState("loja"); // "loja" | "atacado" | "admin"
   const [adminAuth, setAdminAuth] = useState(false);
   const [passInput, setPassInput] = useState("");
   const [passErr, setPassErr]   = useState(false);
@@ -74,7 +77,7 @@ export default function GlasareApp() {
           .select("*")
           .order("created_at", { ascending: true });
         if (data && data.length > 0) {
-          setProducts(data.map(p => ({ ...p, desc: p.descricao })));
+          setProducts(data.map(p => ({ ...p, desc: p.descricao, precoAtacado: p.preco_atacado })));
         } else {
           // Sem peças no banco ainda — carrega seed e salva
           const toInsert = SEED.map(p => ({
@@ -119,7 +122,9 @@ export default function GlasareApp() {
   return (
     <div>
       {mode === "loja"
-        ? <Loja products={products.filter(p=>p.active)} onLogoClick={handleLogoClick} />
+        ? <Loja products={products.filter(p=>p.active)} onLogoClick={handleLogoClick} onGoAtacado={()=>setMode("atacado")} />
+        : mode === "atacado"
+        ? <Atacado products={products.filter(p=>p.active)} onVoltar={()=>setMode("loja")} />
         : <Admin products={products} setProducts={setProducts} persist={persist} />
       }
 
@@ -161,7 +166,7 @@ export default function GlasareApp() {
 // ═══════════════════════════════════════════════════════════════════════════
 // LOJA
 // ═══════════════════════════════════════════════════════════════════════════
-function Loja({ products, onLogoClick }) {
+function Loja({ products, onLogoClick, onGoAtacado }) {
   const [cat, setCat]           = useState("Todos");
   const [search, setSearch]     = useState("");
   const [cart, setCart]         = useState([]);
@@ -237,9 +242,14 @@ function Loja({ products, onLogoClick }) {
           <div style={{ fontSize:22, fontWeight:700, color:C.goldDim, letterSpacing:4, textTransform:"uppercase" }}>Glasare</div>
           <div style={{ fontSize:9, color:C.gray, letterSpacing:5, textTransform:"uppercase", marginTop:-2, fontFamily:"sans-serif" }}>Semi Joias Folheadas 18k</div>
         </div>
-        <button onClick={()=>setCartOpen(true)} style={{ background:`linear-gradient(135deg,${C.goldLight},${C.gold})`, border:"none", borderRadius:24, padding:"8px 20px", color:C.white, fontFamily:"sans-serif", fontSize:13, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", gap:8, boxShadow:`0 2px 12px ${C.gold}55` }}>
-          🛒 Carrinho {cartCount>0 && <span style={{ background:C.white, color:C.goldDim, borderRadius:12, padding:"1px 8px", fontSize:11, fontWeight:800 }}>{cartCount}</span>}
-        </button>
+        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+          <button onClick={onGoAtacado} style={{ background:C.white, border:`1px solid ${C.gold}`, borderRadius:24, padding:"8px 18px", color:C.goldDim, fontFamily:"sans-serif", fontSize:13, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", gap:6 }}>
+            🏷️ Atacado
+          </button>
+          <button onClick={()=>setCartOpen(true)} style={{ background:`linear-gradient(135deg,${C.goldLight},${C.gold})`, border:"none", borderRadius:24, padding:"8px 20px", color:C.white, fontFamily:"sans-serif", fontSize:13, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", gap:8, boxShadow:`0 2px 12px ${C.gold}55` }}>
+            🛒 Carrinho {cartCount>0 && <span style={{ background:C.white, color:C.goldDim, borderRadius:12, padding:"1px 8px", fontSize:11, fontWeight:800 }}>{cartCount}</span>}
+          </button>
+        </div>
       </header>
 
       {/* TARJA PROMOCIONAL */}
@@ -389,7 +399,7 @@ function Loja({ products, onLogoClick }) {
             </div>
             <FL label="Como deseja pagar?">
               <div style={{ display:"flex", gap:10, marginTop:6 }}>
-                {[["whatsapp","💬 WhatsApp"],["pix","🏦 Pix"]].map(([v,l])=>(
+                {[["whatsapp","💳 Compre com cartão"],["pix","🏦 Pix"]].map(([v,l])=>(
                   <button key={v} onClick={()=>setPayMethod(v)} style={{ flex:1, padding:"12px 8px", borderRadius:10, fontFamily:"sans-serif", fontSize:13, fontWeight:700, cursor:"pointer", border:`2px solid ${payMethod===v?C.gold:C.border}`, background:payMethod===v?C.goldPale:C.white, color:payMethod===v?C.goldDim:C.gray }}>{l}</button>
                 ))}
               </div>
@@ -445,6 +455,271 @@ function Loja({ products, onLogoClick }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// ATACADO
+// ═══════════════════════════════════════════════════════════════════════════
+function Atacado({ products, onVoltar }) {
+  const [cat, setCat]           = useState("Todos");
+  const [search, setSearch]     = useState("");
+  const [cart, setCart]         = useState([]);
+  const [cartOpen, setCartOpen] = useState(false);
+  const [checkout, setCheckout] = useState(false);
+  const [payMethod, setPayMethod] = useState("whatsapp");
+  const [form, setForm]         = useState({ name:"", phone:"", address:"" });
+  const [pix, setPix]           = useState(false);
+  const [toast, setToast]       = useState(null);
+  const [detail, setDetail]     = useState(null);
+
+  const showToast = (msg,type="ok") => { setToast({msg,type}); setTimeout(()=>setToast(null),2800); };
+
+  // Só entram no atacado peças com preço de atacado cadastrado
+  const atacadoProducts = products.filter(p => p.precoAtacado != null && p.precoAtacado !== "" && Number(p.precoAtacado) > 0);
+
+  const allCats = ["Todos",...CATS];
+  const filtered = atacadoProducts.filter(p => {
+    const okCat = cat==="Todos" || p.cat===cat;
+    const okQ   = p.name.toLowerCase().includes(search.toLowerCase()) || p.desc.toLowerCase().includes(search.toLowerCase());
+    return okCat && okQ;
+  });
+
+  const addCart = (p) => {
+    setCart(c => { const ex=c.find(x=>x.id===p.id); if(ex) return c.map(x=>x.id===p.id?{...x,qty:x.qty+1}:x); return [...c,{...p,qty:1}]; });
+    showToast(`${p.name} adicionado ao carrinho`);
+  };
+  const removeCart = (id) => setCart(c=>c.filter(x=>x.id!==id));
+  const changeQty  = (id,d) => setCart(c=>c.map(x=>x.id===id?{...x,qty:Math.max(1,x.qty+d)}:x));
+
+  const total     = cart.reduce((a,x)=>a+Number(x.precoAtacado)*x.qty,0);
+  const cartCount = cart.reduce((a,x)=>a+x.qty,0);
+  const faltaParaMinimo = Math.max(0, MIN_ATACADO - total);
+
+  const cartLines = () => cart.map(x=>`• ${x.codigo ? `[${x.codigo}] ` : ""}${x.name} x${x.qty} — ${fmt(Number(x.precoAtacado) * x.qty)}`).join("\n");
+
+  const sendWhatsApp = () => {
+    const msg = encodeURIComponent(`Olá, Glasare! 💛\n\nGostaria de finalizar meu pedido de ATACADO:\n\n${cartLines()}\n\n*Total: ${fmt(total)}*\n\nNome: ${form.name}\nTelefone: ${form.phone}\nEndereço: ${form.address}`);
+    window.open(`https://wa.me/${WHATSAPP}?text=${msg}`,"_blank");
+    setCheckout(false); setCartOpen(false);
+    showToast("Pedido enviado pelo WhatsApp! 🟢");
+  };
+
+  return (
+    <div style={{ minHeight:"100vh", background:C.cream, fontFamily:"'Georgia',serif", color:C.ink, paddingBottom:80 }}>
+      {toast && <Toast msg={toast.msg} type={toast.type}/>}
+
+      {/* HEADER */}
+      <header style={{ background:C.white, borderBottom:`1px solid ${C.border}`, padding:"0 32px", display:"flex", alignItems:"center", justifyContent:"space-between", height:64, position:"sticky", top:0, zIndex:50 }}>
+        <div>
+          <div style={{ fontSize:22, fontWeight:700, color:C.goldDim, letterSpacing:4, textTransform:"uppercase" }}>Glasare</div>
+          <div style={{ fontSize:9, color:C.gray, letterSpacing:5, textTransform:"uppercase", marginTop:-2, fontFamily:"sans-serif" }}>Atacado · Semi Joias Folheadas 18k</div>
+        </div>
+        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+          <button onClick={onVoltar} style={{ background:C.white, border:`1px solid ${C.border}`, borderRadius:24, padding:"8px 18px", color:C.gray, fontFamily:"sans-serif", fontSize:13, fontWeight:700, cursor:"pointer" }}>
+            ← Voltar à loja
+          </button>
+          <button onClick={()=>setCartOpen(true)} style={{ background:`linear-gradient(135deg,${C.goldLight},${C.gold})`, border:"none", borderRadius:24, padding:"8px 20px", color:C.white, fontFamily:"sans-serif", fontSize:13, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", gap:8, boxShadow:`0 2px 12px ${C.gold}55` }}>
+            🛒 Carrinho {cartCount>0 && <span style={{ background:C.white, color:C.goldDim, borderRadius:12, padding:"1px 8px", fontSize:11, fontWeight:800 }}>{cartCount}</span>}
+          </button>
+        </div>
+      </header>
+
+      {/* TARJA */}
+      <div style={{ background:`linear-gradient(135deg,${C.goldLight},${C.gold})`, padding:"14px 16px", textAlign:"center" }}>
+        <div style={{ color:C.white, fontFamily:"sans-serif", fontWeight:800, fontSize:15, letterSpacing:1 }}>VENDAS NO ATACADO · PEDIDO MÍNIMO {fmt(MIN_ATACADO)}</div>
+      </div>
+
+      {/* HERO */}
+      <div style={{ background:C.white, padding:"44px 32px 36px", textAlign:"center", borderBottom:`1px solid ${C.border}` }}>
+        <div style={{ fontSize:10, color:C.gold, letterSpacing:7, textTransform:"uppercase", marginBottom:18, fontFamily:"sans-serif" }}>Atacado · Folheado 18k</div>
+        <h1 style={{ fontSize:30, fontWeight:400, color:C.ink, margin:"0 0 10px", letterSpacing:2, lineHeight:1.3 }}>
+          Preços especiais para <span style={{ fontStyle:"italic", color:C.gold }}>revender.</span>
+        </h1>
+        <div style={{ width:40, height:1, background:C.gold, margin:"20px auto" }}/>
+        <p style={{ color:C.gray, fontFamily:"sans-serif", fontSize:13, margin:"0 auto", maxWidth:420, lineHeight:1.9 }}>
+          Pedido mínimo de {fmt(MIN_ATACADO)}. Combine forma de pagamento e prazos diretamente pelo WhatsApp.
+        </p>
+      </div>
+
+      {/* FILTROS */}
+      <div style={{ background:C.white, borderBottom:`1px solid ${C.border}`, padding:"16px 32px", display:"flex", gap:12, flexWrap:"wrap", alignItems:"center" }}>
+        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar peça..."
+          style={{ padding:"8px 16px", border:`1px solid ${C.border}`, borderRadius:20, fontFamily:"sans-serif", fontSize:13, outline:"none", minWidth:200, background:C.cream }} />
+        <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+          {allCats.map(c=>(
+            <button key={c} onClick={()=>setCat(c)} style={{ padding:"6px 16px", borderRadius:20, fontSize:12, fontFamily:"sans-serif", cursor:"pointer", border:`1px solid ${cat===c?C.gold:C.border}`, background:cat===c?C.goldPale:C.white, color:cat===c?C.goldDim:C.gray, fontWeight:cat===c?700:400 }}>{c}</button>
+          ))}
+        </div>
+        <span style={{ marginLeft:"auto", fontFamily:"sans-serif", fontSize:12, color:C.gray }}>{filtered.length} peças</span>
+      </div>
+
+      {/* GRID */}
+      <div style={{ padding:"32px", display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))", gap:24 }}>
+        {filtered.length===0 && <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"48px 0", color:C.gray, fontFamily:"sans-serif" }}>Nenhuma peça disponível no atacado ainda.</div>}
+        {filtered.map(p=>(
+          <div key={p.id} style={{ background:C.white, borderRadius:12, overflow:"hidden", border:`1px solid ${C.border}`, boxShadow:"0 2px 10px rgba(0,0,0,0.05)", transition:"transform .2s,box-shadow .2s", cursor:"pointer" }}
+            onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-3px)";e.currentTarget.style.boxShadow="0 8px 24px rgba(0,0,0,0.10)";}}
+            onMouseLeave={e=>{e.currentTarget.style.transform="translateY(0)";e.currentTarget.style.boxShadow="0 2px 10px rgba(0,0,0,0.05)";}}>
+            <div onClick={()=>setDetail(p)} style={{ height:190, background:`linear-gradient(135deg,${C.goldPale},#EEE4CC)`, display:"flex", alignItems:"center", justifyContent:"center", position:"relative", overflow:"hidden" }}>
+              {p.image ? <img src={p.image} style={{ width:"100%", height:"100%", objectFit:"cover" }}/> : <span style={{ fontSize:62 }}>{p.emoji}</span>}
+              {p.tag && <span style={{ position:"absolute", top:12, left:12, background:C.goldDim, color:C.white, fontSize:10, padding:"3px 10px", borderRadius:20, fontFamily:"sans-serif", fontWeight:700 }}>{p.tag}</span>}
+            </div>
+            <div style={{ padding:"16px 18px 20px" }}>
+              <div style={{ fontSize:15, fontWeight:700, marginBottom:4 }}>{p.name}</div>
+              {p.codigo && <div style={{ fontSize:10, color:C.gold, fontFamily:"sans-serif", letterSpacing:1.5, textTransform:"uppercase", marginBottom:4 }}>#{p.codigo}</div>}
+              <div style={{ fontSize:12, color:C.gray, fontFamily:"sans-serif", lineHeight:1.5, marginBottom:14, minHeight:32 }}>{p.desc}</div>
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                <div>
+                  <div style={{ fontSize:19, fontWeight:700, color:C.goldDim }}>{fmt(p.precoAtacado)}</div>
+                  <div style={{ fontSize:10, color:C.gray, fontFamily:"sans-serif", textDecoration:"line-through" }}>{fmt(p.price)}</div>
+                </div>
+                <button onClick={()=>addCart(p)} style={{ background:`linear-gradient(135deg,${C.goldLight},${C.gold})`, color:C.white, border:"none", borderRadius:8, padding:"8px 16px", cursor:"pointer", fontFamily:"sans-serif", fontSize:12, fontWeight:700 }}>+ Carrinho</button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* DETALHE */}
+      {detail && (
+        <Overlay onClose={()=>setDetail(null)}>
+          <div style={{ padding:28 }}>
+            <div style={{ height:220, background:`linear-gradient(135deg,${C.goldPale},#EEE4CC)`, borderRadius:10, display:"flex", alignItems:"center", justifyContent:"center", marginBottom:20, overflow:"hidden" }}>
+              {detail.image ? <img src={detail.image} style={{ width:"100%", height:"100%", objectFit:"cover" }}/> : <span style={{ fontSize:80 }}>{detail.emoji}</span>}
+            </div>
+            {detail.tag && <span style={{ background:C.goldDim, color:C.white, fontSize:10, padding:"3px 12px", borderRadius:20, fontFamily:"sans-serif", fontWeight:700 }}>{detail.tag}</span>}
+            <div style={{ fontSize:22, fontWeight:700, margin:"12px 0 6px" }}>{detail.name}</div>
+            <div style={{ fontSize:13, color:C.gray, fontFamily:"sans-serif", lineHeight:1.7, marginBottom:16 }}>{detail.desc}</div>
+            <div style={{ fontSize:10, color:C.gray, fontFamily:"sans-serif", letterSpacing:1, textTransform:"uppercase", marginBottom:4 }}>Categoria</div>
+            <div style={{ fontSize:13, fontFamily:"sans-serif", marginBottom:20 }}>{detail.cat}</div>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+              <div style={{ fontSize:26, fontWeight:700, color:C.goldDim }}>{fmt(detail.precoAtacado)}</div>
+              <button onClick={()=>{addCart(detail);setDetail(null);}} style={{ background:`linear-gradient(135deg,${C.goldLight},${C.gold})`, color:C.white, border:"none", borderRadius:8, padding:"12px 24px", cursor:"pointer", fontFamily:"sans-serif", fontSize:14, fontWeight:700 }}>Adicionar ao Carrinho</button>
+            </div>
+          </div>
+        </Overlay>
+      )}
+
+      {/* CARRINHO DRAWER */}
+      {cartOpen && (
+        <div style={{ position:"fixed", inset:0, zIndex:200 }}>
+          <div onClick={()=>setCartOpen(false)} style={{ position:"absolute", inset:0, background:"rgba(0,0,0,0.45)" }}/>
+          <div style={{ position:"absolute", right:0, top:0, bottom:0, width:"min(420px,100vw)", background:C.white, display:"flex", flexDirection:"column", boxShadow:"-8px 0 40px rgba(0,0,0,0.15)" }}>
+            <div style={{ padding:"20px 24px", borderBottom:`1px solid ${C.border}`, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+              <div style={{ fontSize:16, fontWeight:700, letterSpacing:1 }}>🛒 Carrinho Atacado</div>
+              <button onClick={()=>setCartOpen(false)} style={{ background:"none", border:"none", fontSize:22, cursor:"pointer", color:C.gray }}>×</button>
+            </div>
+            <div style={{ flex:1, overflowY:"auto", padding:"16px 24px" }}>
+              {cart.length===0
+                ? <div style={{ textAlign:"center", padding:"48px 0", color:C.gray, fontFamily:"sans-serif" }}><div style={{ fontSize:40, marginBottom:12 }}>🛒</div><div>Seu carrinho está vazio.</div></div>
+                : cart.map(x=>(
+                  <div key={x.id} style={{ display:"flex", gap:12, alignItems:"center", padding:"12px 0", borderBottom:`1px solid ${C.border}` }}>
+                    <div style={{ width:48, height:48, background:C.goldPale, borderRadius:8, display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, flexShrink:0, overflow:"hidden" }}>
+                      {x.image ? <img src={x.image} style={{ width:"100%", height:"100%", objectFit:"cover" }}/> : x.emoji}
+                    </div>
+                    <div style={{ flex:1 }}>
+                      <div style={{ fontSize:13, fontWeight:700 }}>{x.name}</div>
+                      {x.codigo && <div style={{ fontSize:10, color:C.gold, fontFamily:"sans-serif", letterSpacing:1 }}>#{x.codigo}</div>}
+                      <div style={{ fontSize:12, color:C.gray, fontFamily:"sans-serif" }}>{fmt(x.precoAtacado)} un.</div>
+                    </div>
+                    <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                      <QtyBtn onClick={()=>changeQty(x.id,-1)}>−</QtyBtn>
+                      <span style={{ fontFamily:"sans-serif", fontSize:13, minWidth:18, textAlign:"center" }}>{x.qty}</span>
+                      <QtyBtn onClick={()=>changeQty(x.id,+1)}>+</QtyBtn>
+                    </div>
+                    <div style={{ fontSize:13, fontWeight:700, color:C.goldDim, minWidth:64, textAlign:"right" }}>{fmt(Number(x.precoAtacado)*x.qty)}</div>
+                    <button onClick={()=>removeCart(x.id)} style={{ background:"none", border:"none", color:C.gray, cursor:"pointer", fontSize:16 }}>✕</button>
+                  </div>
+                ))
+              }
+            </div>
+            {cart.length>0 && (
+              <div style={{ padding:"16px 24px", borderTop:`1px solid ${C.border}` }}>
+                <div style={{ display:"flex", justifyContent:"space-between", fontWeight:700, fontSize:16, paddingTop:4, marginBottom:8 }}><span>Total</span><span style={{ color:C.goldDim }}>{fmt(total)}</span></div>
+                {faltaParaMinimo > 0 && (
+                  <div style={{ fontSize:12, color:C.red, fontFamily:"sans-serif", marginBottom:12, background:C.redPale, padding:"8px 12px", borderRadius:8 }}>
+                    Faltam {fmt(faltaParaMinimo)} para atingir o pedido mínimo de {fmt(MIN_ATACADO)}.
+                  </div>
+                )}
+                <button
+                  disabled={faltaParaMinimo > 0}
+                  onClick={()=>{setCartOpen(false);setCheckout(true);}}
+                  style={{ width:"100%", padding:"14px", background: faltaParaMinimo>0 ? C.border : `linear-gradient(135deg,${C.goldLight},${C.gold})`, color:C.white, border:"none", borderRadius:10, cursor: faltaParaMinimo>0 ? "not-allowed" : "pointer", fontFamily:"sans-serif", fontSize:15, fontWeight:800, letterSpacing:.5, boxShadow: faltaParaMinimo>0 ? "none" : `0 4px 18px ${C.gold}55` }}>
+                  Finalizar Pedido →
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* CHECKOUT */}
+      {checkout && (
+        <Overlay onClose={()=>setCheckout(false)}>
+          <div style={{ padding:28 }}>
+            <div style={{ fontSize:18, fontWeight:700, marginBottom:20, letterSpacing:1 }}>Finalizar Pedido — Atacado</div>
+            <FL label="Seu nome"><FI value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} placeholder="Nome completo"/></FL>
+            <FL label="WhatsApp / Telefone"><FI value={form.phone} onChange={e=>setForm(f=>({...f,phone:e.target.value}))} placeholder="(21) 99999-9999"/></FL>
+            <FL label="Endereço de entrega" mb={20}><FI value={form.address} onChange={e=>setForm(f=>({...f,address:e.target.value}))} placeholder="Rua, número, bairro, cidade"/></FL>
+            <div style={{ background:C.cream, borderRadius:8, padding:"12px 16px", marginBottom:20, fontFamily:"sans-serif", fontSize:13 }}>
+              {cart.map(x=><div key={x.id} style={{ display:"flex", justifyContent:"space-between", marginBottom:4, color:C.gray }}><span>{x.name} × {x.qty}</span><span>{fmt(Number(x.precoAtacado)*x.qty)}</span></div>)}
+              <div style={{ display:"flex", justifyContent:"space-between", fontWeight:700, fontSize:15, borderTop:`1px solid ${C.border}`, paddingTop:8, marginTop:8 }}><span>Total</span><span style={{ color:C.goldDim }}>{fmt(total)}</span></div>
+            </div>
+            <FL label="Como deseja pagar?">
+              <div style={{ display:"flex", gap:10, marginTop:6 }}>
+                {[["whatsapp","💳 Compre com cartão"],["pix","🏦 Pix"]].map(([v,l])=>(
+                  <button key={v} onClick={()=>setPayMethod(v)} style={{ flex:1, padding:"12px 8px", borderRadius:10, fontFamily:"sans-serif", fontSize:13, fontWeight:700, cursor:"pointer", border:`2px solid ${payMethod===v?C.gold:C.border}`, background:payMethod===v?C.goldPale:C.white, color:payMethod===v?C.goldDim:C.gray }}>{l}</button>
+                ))}
+              </div>
+              {payMethod==="whatsapp" && (
+                <div style={{ fontSize:11, color:C.gray, fontFamily:"sans-serif", marginTop:8, lineHeight:1.6 }}>
+                  Combine a forma de pagamento (Pix ou cartão) diretamente comigo pelo WhatsApp.
+                </div>
+              )}
+            </FL>
+            <button onClick={()=>{ if(!form.name||!form.phone){showToast("Preencha nome e telefone","err");return;} payMethod==="whatsapp"?sendWhatsApp():(setPix(true),setCheckout(false)); }}
+              style={{ width:"100%", padding:"14px", background:`linear-gradient(135deg,${C.goldLight},${C.gold})`, color:C.white, border:"none", borderRadius:10, cursor:"pointer", fontFamily:"sans-serif", fontSize:15, fontWeight:800, marginTop:20, boxShadow:`0 4px 18px ${C.gold}44` }}>
+              {payMethod==="whatsapp"?"Enviar pelo WhatsApp 💬":"Ver dados do Pix 🏦"}
+            </button>
+          </div>
+        </Overlay>
+      )}
+
+      {/* PIX */}
+      {pix && (
+        <Overlay onClose={()=>{setPix(false);setCart([]);}}>
+          <div style={{ padding:32, textAlign:"center" }}>
+            <div style={{ fontSize:52, marginBottom:12 }}>🏦</div>
+            <div style={{ fontSize:20, fontWeight:700, marginBottom:6 }}>Pague via Pix</div>
+            <div style={{ background:"#FFF8E1", border:"1px solid #F9A825", borderRadius:8, padding:"12px 16px", marginBottom:16, fontFamily:"sans-serif", fontSize:13, color:"#5D4037", lineHeight:1.7 }}>
+              ⚠️ <strong>Atenção:</strong> Seu pedido só será confirmado após o envio e verificação do comprovante de pagamento pelo WhatsApp.
+            </div>
+            <div style={{ fontSize:13, color:C.gray, fontFamily:"sans-serif", marginBottom:16, lineHeight:1.6 }}>
+              1. Copie a chave Pix abaixo<br/>
+              2. Faça o pagamento no seu banco<br/>
+              3. Envie o comprovante pelo WhatsApp<br/>
+              4. Aguarde a confirmação da Glasare
+            </div>
+            <div style={{ background:C.cream, border:`1px solid ${C.border}`, borderRadius:8, padding:"14px 20px", fontFamily:"monospace", fontSize:15, letterSpacing:.5, marginBottom:8, userSelect:"all" }}>{CHAVE_PIX}</div>
+            <div style={{ fontSize:11, color:C.gray, fontFamily:"sans-serif", marginBottom:8 }}>Chave Pix — Telefone</div>
+            <div style={{ fontSize:24, fontWeight:800, color:C.goldDim, margin:"12px 0 20px" }}>{fmt(total)}</div>
+            <button onClick={()=>{ const msg=encodeURIComponent(`Olá, Glasare! 💛\n\nRealizei o pagamento via Pix (ATACADO) e gostaria de enviar o comprovante para confirmar meu pedido.\n\n${cartLines()}\n\n*Total: ${fmt(total)}*\n\nNome: ${form.name}\nTelefone: ${form.phone}`); window.open(`https://wa.me/${WHATSAPP}?text=${msg}`,"_blank"); setPix(false);setCart([]); }}
+              style={{ width:"100%", padding:"13px", background:"#25D366", color:C.white, border:"none", borderRadius:10, cursor:"pointer", fontFamily:"sans-serif", fontSize:14, fontWeight:800 }}>
+              Enviar comprovante pelo WhatsApp 💬
+            </button>
+            <div style={{ fontSize:11, color:C.gray, fontFamily:"sans-serif", marginTop:12, lineHeight:1.6 }}>
+              Seu pedido será confirmado após verificação do pagamento.
+            </div>
+          </div>
+        </Overlay>
+      )}
+
+      <div style={{ textAlign:"center", padding:"32px 0 40px", borderTop:`1px solid ${C.border}`, color:C.gray, fontFamily:"sans-serif", fontSize:12, letterSpacing:1 }}>
+        © 2025 Glasare · Atacado · Rio de Janeiro
+      </div>
+      <style>{`@keyframes fadeUp{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}`}</style>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // ADMIN
 // ═══════════════════════════════════════════════════════════════════════════
 function Admin({ products, setProducts, persist }) {
@@ -460,7 +735,7 @@ function Admin({ products, setProducts, persist }) {
   const showToast = (msg,type="ok") => { setToast({msg,type}); setTimeout(()=>setToast(null),2800); };
 
   const openNew  = () => { setForm({...EMPTY_FORM}); setModal("new"); };
-  const openEdit = (p) => { setForm({...p, price:String(p.price).replace(".",",")}); setModal(p.id); };
+  const openEdit = (p) => { setForm({...p, price:String(p.price).replace(".",","), precoAtacado: p.precoAtacado!=null ? String(p.precoAtacado).replace(".",",") : ""}); setModal(p.id); };
   const closeModal = () => { setModal(null); setForm(EMPTY_FORM); };
 
   const handleImage = (e) => {
@@ -472,6 +747,13 @@ function Admin({ products, setProducts, persist }) {
     if(!form.name.trim()){showToast("Informe o nome da peça","err");return;}
     const priceNum=parseFloat(String(form.price).replace(",","."));
     if(isNaN(priceNum)||priceNum<=0){showToast("Informe um valor válido","err");return;}
+
+    let precoAtacadoNum = null;
+    if (String(form.precoAtacado||"").trim() !== "") {
+      const n = parseFloat(String(form.precoAtacado).replace(",","."));
+      if (isNaN(n) || n<=0) { showToast("Informe um preço de atacado válido, ou deixe em branco","err"); return; }
+      precoAtacadoNum = n;
+    }
 
     showToast("Salvando...", "ok");
 
@@ -495,6 +777,7 @@ function Admin({ products, setProducts, persist }) {
       name: form.name,
       descricao: form.desc,
       price: priceNum,
+      preco_atacado: precoAtacadoNum,
       cat: form.cat,
       tag: form.tag,
       emoji: form.emoji || "💎",
@@ -508,14 +791,14 @@ function Admin({ products, setProducts, persist }) {
     if(modal==="new"){
       const { data, error } = await supabase.from("produtos").insert([row]).select();
       if (error) { showToast("Erro ao salvar. Tente novamente.", "err"); return; }
-      const nova = data?.[0] ? { ...data[0], desc: data[0].descricao } : { ...row, desc:form.desc, id:"p"+Date.now() };
+      const nova = data?.[0] ? { ...data[0], desc: data[0].descricao, precoAtacado: data[0].preco_atacado } : { ...row, desc:form.desc, precoAtacado:precoAtacadoNum, id:"p"+Date.now() };
       newId = nova.id;
       updated = [...products, nova];
       showToast("Peça cadastrada!");
     } else {
       const { error } = await supabase.from("produtos").update(row).eq("id", modal);
       if (error) { showToast("Erro ao atualizar. Tente novamente.", "err"); return; }
-      updated = products.map(p => p.id===modal ? {...p,...row, desc:form.desc, price:priceNum} : p);
+      updated = products.map(p => p.id===modal ? {...p,...row, desc:form.desc, price:priceNum, precoAtacado:precoAtacadoNum} : p);
       showToast("Peça atualizada!");
     }
     setProducts(updated);
@@ -599,14 +882,14 @@ function Admin({ products, setProducts, persist }) {
           {/* LISTA */}
           <div style={{ padding:"0 32px 48px" }}>
             <div style={{ background:C.white, border:`1px solid ${C.border}`, borderRadius:12, overflow:"hidden" }}>
-              <div style={{ display:"grid", gridTemplateColumns:"56px 1fr 110px 90px 90px 80px 130px", padding:"10px 20px", background:C.cream, borderBottom:`1px solid ${C.border}` }}>
-                {["Foto","Peça","Categoria","Preço","Tag","Status","Ações"].map(h=>(
+              <div style={{ display:"grid", gridTemplateColumns:"56px 1fr 110px 90px 90px 90px 80px 130px", padding:"10px 20px", background:C.cream, borderBottom:`1px solid ${C.border}` }}>
+                {["Foto","Peça","Categoria","Preço","Atacado","Tag","Status","Ações"].map(h=>(
                   <div key={h} style={{ fontSize:10, color:C.gray, fontFamily:"sans-serif", letterSpacing:1.5, textTransform:"uppercase", fontWeight:600 }}>{h}</div>
                 ))}
               </div>
               {filtered.length===0 && <div style={{ padding:40, textAlign:"center", color:C.gray, fontFamily:"sans-serif", fontSize:13 }}>Nenhuma peça encontrada.</div>}
               {filtered.map((p,i)=>(
-                <div key={p.id} style={{ display:"grid", gridTemplateColumns:"56px 1fr 110px 90px 90px 80px 130px", alignItems:"center", padding:"14px 20px", borderBottom:i<filtered.length-1?`1px solid ${C.border}`:"none", background:p.active?C.white:"#FAFAF8", opacity:p.active?1:0.6 }}>
+                <div key={p.id} style={{ display:"grid", gridTemplateColumns:"56px 1fr 110px 90px 90px 90px 80px 130px", alignItems:"center", padding:"14px 20px", borderBottom:i<filtered.length-1?`1px solid ${C.border}`:"none", background:p.active?C.white:"#FAFAF8", opacity:p.active?1:0.6 }}>
                   <div style={{ width:42, height:42, borderRadius:8, background:C.goldPale, display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", fontSize:20 }}>
                     {p.image?<img src={p.image} style={{ width:"100%", height:"100%", objectFit:"cover" }}/>:p.emoji||"💎"}
                   </div>
@@ -617,6 +900,7 @@ function Admin({ products, setProducts, persist }) {
                   </div>
                   <div style={{ fontSize:12, color:C.gray, fontFamily:"sans-serif" }}>{p.cat}</div>
                   <div style={{ fontSize:14, fontWeight:700, color:C.goldDim }}>{fmt(p.price)}</div>
+                  <div style={{ fontSize:13, fontWeight:700, color:p.precoAtacado?C.goldDim:C.border }}>{p.precoAtacado?fmt(p.precoAtacado):"—"}</div>
                   <div>{p.tag?<span style={{ background:C.goldPale, color:C.goldDim, fontSize:10, padding:"3px 10px", borderRadius:20, fontFamily:"sans-serif", fontWeight:700 }}>{p.tag}</span>:<span style={{ color:C.border }}>—</span>}</div>
                   <div>
                     <button onClick={()=>toggleActive(p.id)} style={{ background:p.active?"#E8F5E9":C.redPale, color:p.active?C.green:C.red, border:`1px solid ${p.active?"#A5D6A7":"#FFCDD2"}`, borderRadius:20, padding:"4px 12px", fontSize:10, fontFamily:"sans-serif", fontWeight:700, cursor:"pointer" }}>
@@ -661,6 +945,12 @@ function Admin({ products, setProducts, persist }) {
                 <div style={{ fontSize:10, color:C.gray, fontFamily:"sans-serif", letterSpacing:1.5, textTransform:"uppercase", marginBottom:6, fontWeight:600 }}>Preço (R$) *</div>
                 <FI value={form.price} onChange={e=>setForm(f=>({...f,price:e.target.value}))} placeholder="89,90"/>
               </div>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:10, color:C.gray, fontFamily:"sans-serif", letterSpacing:1.5, textTransform:"uppercase", marginBottom:6, fontWeight:600 }}>Preço Atacado (R$)</div>
+                <FI value={form.precoAtacado||""} onChange={e=>setForm(f=>({...f,precoAtacado:e.target.value}))} placeholder="Deixe em branco p/ não vender no atacado"/>
+              </div>
+            </div>
+            <div style={{ display:"flex", gap:12, marginBottom:14 }}>
               <div style={{ flex:1 }}>
                 <div style={{ fontSize:10, color:C.gray, fontFamily:"sans-serif", letterSpacing:1.5, textTransform:"uppercase", marginBottom:6, fontWeight:600 }}>Categoria</div>
                 <select value={form.cat} onChange={e=>setForm(f=>({...f,cat:e.target.value}))} style={{ width:"100%", padding:"9px 12px", border:`1px solid ${C.border}`, borderRadius:8, fontFamily:"sans-serif", fontSize:13, outline:"none", background:C.white }}>
