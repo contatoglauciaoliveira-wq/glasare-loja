@@ -27,7 +27,7 @@ const WHATSAPP  = "5521991721655";
 const CHAVE_PIX = "21991721655";
 
 // ── Pedido mínimo no atacado ───────────────────────────────────────────────
-const MIN_ATACADO = 300;
+const MIN_ATACADO = 99.90;
 
 // ── Cupons ────────────────────────────────────────────────────────────────
 const COUPONS = { "GLASARE10": 10, "SARAH": 5, "BEM-VINDA": 20, "BEKAH7": 10 };
@@ -75,7 +75,7 @@ export default function GlasareApp() {
         const { data, error } = await supabase
           .from("produtos")
           .select("*")
-          .order("created_at", { ascending: true });
+          .order("created_at", { ascending: false });
         if (data && data.length > 0) {
           setProducts(data.map(p => ({ ...p, desc: p.descricao, precoAtacado: p.preco_atacado })));
         } else {
@@ -305,7 +305,7 @@ function Loja({ products, onLogoClick, onGoAtacado }) {
               <div style={{ fontSize:12, color:C.gray, fontFamily:"sans-serif", lineHeight:1.5, marginBottom:14, minHeight:32 }}>{p.desc}</div>
               <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
                 <div style={{ fontSize:19, fontWeight:700, color:C.goldDim }}>{fmt(p.price)}</div>
-                <button onClick={()=>addCart(p)} style={{ background:`linear-gradient(135deg,${C.goldLight},${C.gold})`, color:C.white, border:"none", borderRadius:8, padding:"8px 16px", cursor:"pointer", fontFamily:"sans-serif", fontSize:12, fontWeight:700 }}>+ Carrinho</button>
+                <button onClick={()=>addCart(p)} style={{ background:`linear-gradient(135deg,${C.goldLight},${C.gold})`, color:C.white, border:"none", borderRadius:8, padding:"8px 16px", cursor:"pointer", fontFamily:"sans-serif", fontSize:12, fontWeight:700, letterSpacing:.5 }}>🛍️ COMPRAR</button>
               </div>
             </div>
           </div>
@@ -495,6 +495,8 @@ function Atacado({ products, onVoltar }) {
   const cartLines = () => cart.map(x=>`• ${x.codigo ? `[${x.codigo}] ` : ""}${x.name} x${x.qty} — ${fmt(Number(x.precoAtacado) * x.qty)}`).join("\n");
 
   const sendWhatsApp = () => {
+    // Validação de segurança: garante que o pedido mínimo é respeitado mesmo se o botão for manipulado no front-end
+    if (total < MIN_ATACADO) { showToast(`Pedido abaixo do mínimo de ${fmt(MIN_ATACADO)}`,"err"); setCheckout(false); return; }
     const msg = encodeURIComponent(`Olá, Glasare! 💛\n\nGostaria de finalizar meu pedido de ATACADO:\n\n${cartLines()}\n\n*Total: ${fmt(total)}*\n\nNome: ${form.name}\nTelefone: ${form.phone}\nEndereço: ${form.address}`);
     window.open(`https://wa.me/${WHATSAPP}?text=${msg}`,"_blank");
     setCheckout(false); setCartOpen(false);
@@ -570,7 +572,7 @@ function Atacado({ products, onVoltar }) {
                   <div style={{ fontSize:19, fontWeight:700, color:C.goldDim }}>{fmt(p.precoAtacado)}</div>
                   <div style={{ fontSize:10, color:C.gray, fontFamily:"sans-serif", textDecoration:"line-through" }}>{fmt(p.price)}</div>
                 </div>
-                <button onClick={()=>addCart(p)} style={{ background:`linear-gradient(135deg,${C.goldLight},${C.gold})`, color:C.white, border:"none", borderRadius:8, padding:"8px 16px", cursor:"pointer", fontFamily:"sans-serif", fontSize:12, fontWeight:700 }}>+ Carrinho</button>
+                <button onClick={()=>addCart(p)} style={{ background:`linear-gradient(135deg,${C.goldLight},${C.gold})`, color:C.white, border:"none", borderRadius:8, padding:"8px 16px", cursor:"pointer", fontFamily:"sans-serif", fontSize:12, fontWeight:700, letterSpacing:.5 }}>🛍️ COMPRAR</button>
               </div>
             </div>
           </div>
@@ -633,9 +635,13 @@ function Atacado({ products, onVoltar }) {
             {cart.length>0 && (
               <div style={{ padding:"16px 24px", borderTop:`1px solid ${C.border}` }}>
                 <div style={{ display:"flex", justifyContent:"space-between", fontWeight:700, fontSize:16, paddingTop:4, marginBottom:8 }}><span>Total</span><span style={{ color:C.goldDim }}>{fmt(total)}</span></div>
-                {faltaParaMinimo > 0 && (
+                {faltaParaMinimo > 0 ? (
                   <div style={{ fontSize:12, color:C.red, fontFamily:"sans-serif", marginBottom:12, background:C.redPale, padding:"8px 12px", borderRadius:8 }}>
-                    Faltam {fmt(faltaParaMinimo)} para atingir o pedido mínimo de {fmt(MIN_ATACADO)}.
+                    Faltam {fmt(faltaParaMinimo)} para você atingir o pedido mínimo de {fmt(MIN_ATACADO)}.
+                  </div>
+                ) : (
+                  <div style={{ fontSize:12, color:C.green, fontFamily:"sans-serif", marginBottom:12, background:"#E8F5E9", padding:"8px 12px", borderRadius:8, fontWeight:600 }}>
+                    ✓ Pedido mínimo atingido! Você já pode finalizar sua compra.
                   </div>
                 )}
                 <button
@@ -674,7 +680,7 @@ function Atacado({ products, onVoltar }) {
                 </div>
               )}
             </FL>
-            <button onClick={()=>{ if(!form.name||!form.phone){showToast("Preencha nome e telefone","err");return;} payMethod==="whatsapp"?sendWhatsApp():(setPix(true),setCheckout(false)); }}
+            <button onClick={()=>{ if(!form.name||!form.phone){showToast("Preencha nome e telefone","err");return;} if(total < MIN_ATACADO){showToast(`Pedido abaixo do mínimo de ${fmt(MIN_ATACADO)}`,"err");setCheckout(false);return;} payMethod==="whatsapp"?sendWhatsApp():(setPix(true),setCheckout(false)); }}
               style={{ width:"100%", padding:"14px", background:`linear-gradient(135deg,${C.goldLight},${C.gold})`, color:C.white, border:"none", borderRadius:10, cursor:"pointer", fontFamily:"sans-serif", fontSize:15, fontWeight:800, marginTop:20, boxShadow:`0 4px 18px ${C.gold}44` }}>
               {payMethod==="whatsapp"?"Enviar pelo WhatsApp 💬":"Ver dados do Pix 🏦"}
             </button>
@@ -700,7 +706,7 @@ function Atacado({ products, onVoltar }) {
             <div style={{ background:C.cream, border:`1px solid ${C.border}`, borderRadius:8, padding:"14px 20px", fontFamily:"monospace", fontSize:15, letterSpacing:.5, marginBottom:8, userSelect:"all" }}>{CHAVE_PIX}</div>
             <div style={{ fontSize:11, color:C.gray, fontFamily:"sans-serif", marginBottom:8 }}>Chave Pix — Telefone</div>
             <div style={{ fontSize:24, fontWeight:800, color:C.goldDim, margin:"12px 0 20px" }}>{fmt(total)}</div>
-            <button onClick={()=>{ const msg=encodeURIComponent(`Olá, Glasare! 💛\n\nRealizei o pagamento via Pix (ATACADO) e gostaria de enviar o comprovante para confirmar meu pedido.\n\n${cartLines()}\n\n*Total: ${fmt(total)}*\n\nNome: ${form.name}\nTelefone: ${form.phone}`); window.open(`https://wa.me/${WHATSAPP}?text=${msg}`,"_blank"); setPix(false);setCart([]); }}
+            <button onClick={()=>{ if(total < MIN_ATACADO){showToast(`Pedido abaixo do mínimo de ${fmt(MIN_ATACADO)}`,"err");setPix(false);return;} const msg=encodeURIComponent(`Olá, Glasare! 💛\n\nRealizei o pagamento via Pix (ATACADO) e gostaria de enviar o comprovante para confirmar meu pedido.\n\n${cartLines()}\n\n*Total: ${fmt(total)}*\n\nNome: ${form.name}\nTelefone: ${form.phone}`); window.open(`https://wa.me/${WHATSAPP}?text=${msg}`,"_blank"); setPix(false);setCart([]); }}
               style={{ width:"100%", padding:"13px", background:"#25D366", color:C.white, border:"none", borderRadius:10, cursor:"pointer", fontFamily:"sans-serif", fontSize:14, fontWeight:800 }}>
               Enviar comprovante pelo WhatsApp 💬
             </button>
@@ -793,7 +799,7 @@ function Admin({ products, setProducts, persist }) {
       if (error) { showToast("Erro ao salvar. Tente novamente.", "err"); return; }
       const nova = data?.[0] ? { ...data[0], desc: data[0].descricao, precoAtacado: data[0].preco_atacado } : { ...row, desc:form.desc, precoAtacado:precoAtacadoNum, id:"p"+Date.now() };
       newId = nova.id;
-      updated = [...products, nova];
+      updated = [nova, ...products];
       showToast("Peça cadastrada!");
     } else {
       const { error } = await supabase.from("produtos").update(row).eq("id", modal);
